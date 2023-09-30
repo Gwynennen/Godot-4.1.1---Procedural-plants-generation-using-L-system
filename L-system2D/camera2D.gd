@@ -16,7 +16,7 @@ func _input(event):
 				zoom = newZoom.clamp(zoomMin, zoomMax)
 			# zoom out
 			elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-				var newZoom = zoom - Vector2(zoomDelta, zoomDelta)				
+				var newZoom = zoom - Vector2(zoomDelta, zoomDelta)
 				zoom = newZoom.clamp(zoomMin, zoomMax)
 				
 			if event.button_index == MOUSE_BUTTON_LEFT:

@@ -1,40 +1,27 @@
 extends Node2D
 
 var parts = []
-var polyPoints
 var drawble = "FH"
 var skips = "fh"
-var constants = "-+[]|#!@{}.<>&()"
-var swapFlag = 1
+var actions = "-+[]|#!{}.<>&()L"
 var rules
-var colors = {
-	"F": Color.SADDLE_BROWN,
-	"H": Color.BLACK,
-	"dot": Color.DARK_GREEN
-}
 var starting
 var current
-var checkpoint = {
-	"pos": [],
-	"dir": []
-}
-var steps = 5
-var TW
+
 
 func _ready():
 	randomize()
-	rules = load_preset("P2")
+	main("Tree1", Vector2(DisplayServer.window_get_size().x/2, DisplayServer.window_get_size().y), 5, Color.DARK_SLATE_GRAY)
+	
+func main(preset_name: String, startingPos: Vector2, steps, color):
+	rules = load_settings(preset_name)
 	current = starting.duplicate(true)
-	$Camera2D.position = starting.pos
-	TW = create_tween()
-	TW.finished.connect(func(): 
-		var doneLabel = Label.new()
-		doneLabel.text = "DONE"
-		add_child(doneLabel)
-		)
-	calculate_draw()
+	current.pos = startingPos
+	current.color = color
+	calculate_state(steps)
+	draw_parts(set_tween())
 
-func load_preset(presetName: String):
+func load_settings(presetName: String):
 	var preset_data = {}
 	var presets = ConfigFile.new()
 	var err = presets.load("presets.cfg")
@@ -50,16 +37,14 @@ func load_preset(presetName: String):
 						starting = presets.get_value(p, key)
 						starting.angle = deg_to_rad(starting.angle)
 						starting.angleDelta = deg_to_rad(starting.angleDelta)
-						starting.pos = Vector2(DisplayServer.window_get_size().x/starting.posX_ratio, DisplayServer.window_get_size().y/starting.posY_ratio)
 						starting.dir = Vector2(starting.dirX, starting.dirY)
 					_:
 						preset_data[key] = presets.get_value(p, key)
 						
-			
 			return preset_data
+	push_error("No such preset in config")
 
-func calculate_draw():
-# calculating state
+func calculate_state(steps):
 	for step in steps:
 		var tmp = ""
 		for part in current.state:
@@ -72,59 +57,74 @@ func calculate_draw():
 				tmp += part
 		current.state = tmp
 
-# drawing
+func draw_parts(TW):
+	var polyPoints
+	var swapFlag = 1
+	var checkpoint = {
+		"pos": [],
+		"dir": []
+	}
 	for part in current.state:
 		if part in drawble:
-			var tmpLength = current.length if part == "F" else current.length/2
-			var newPos = current.pos + current.dir*tmpLength
+			var newPos = current.pos + current.dir * (current.length if part == "F" else current.length/2)
 			var line = Line2D.new()
 			line.add_point(current.pos)
 			line.add_point(current.pos)
 			line.set_width(current.width)
-			line.set_default_color(colors[part])
+			line.set_default_color(current.color)
+			current.color = current.color.lightened(0.001)
 			parts.append(line)
 			add_child(line)
 			TW.tween_method((func(newPos, line): line.set_point_position(line.get_point_count()-1, newPos)).bind(line), current.pos, newPos, 0.01).set_trans(Tween.TRANS_LINEAR)
 			current.pos = newPos
 		elif part in skips:
 			current.pos = current.pos + current.dir*current.length
-		elif part in constants:
+		elif part in actions:
 			match part:
-				"-": current.dir = current.dir.rotated(-current.angle * swapFlag)
-				"+": current.dir = current.dir.rotated(current.angle * swapFlag)
+#				handle stack
 				"[": 
 					checkpoint.pos.append(current.pos)
 					checkpoint.dir.append(current.dir)
 				"]": 
 					current.pos = checkpoint.pos.pop_back()
 					current.dir = checkpoint.dir.pop_back()
-				"|":
-					current.width -= deg_to_rad(180)
-				"#":
-					current.width += current.widthDelta
-				"!":
-					current.width -= current.widthDelta
-				"<":
-					current.length += current.lengthDelta
-				">":
-					current.length -= current.lengthDelta
+				
+#				handle angles
+				"-": current.dir = current.dir.rotated(-current.angle * swapFlag).normalized()
+				"+": current.dir = current.dir.rotated(current.angle * swapFlag).normalized()
 				"(":
 					current.angle += current.angleDelta
 				")":
 					current.angle -= current.angleDelta
-				"@":
-					var line = Line2D.new()
-					var newPos = current.pos + current.dir*current.width
-					line.add_point(current.pos)
-					line.add_point(current.pos)
-					line.set_width(current.width)
-					line.set_default_color(colors.dot)
-					parts.append(line)
-					add_child(line)
-					TW.tween_method((func(newPos, line): line.set_point_position(line.get_point_count()-1, newPos)).bind(line), current.pos, newPos, 0.01).set_trans(Tween.TRANS_LINEAR)
+				"|":
+					current.angle -= deg_to_rad(180)
+				
+#				width
+				"#":
+					current.width += current.widthDelta
+				"!":
+					current.width -= current.widthDelta
+					
+#				length	
+				"<":
+					current.length += current.lengthDelta
+				">":
+					current.length -= current.lengthDelta
+
+#				handle leaves
+				"L":
+					var leaf = Polygon2D.new()
+					var newPos = PackedVector2Array([current.pos, current.pos+current.dir.rotated(150)*current.length, current.pos+current.dir.rotated(300)*current.length*4])
+					leaf.set_polygon(PackedVector2Array([current.pos, current.pos+current.dir*current.width,current.pos+current.dir*current.width]))
+					leaf.set_color(Color.GREEN)
+					parts.append(leaf)
+					add_child(leaf)
+					TW.tween_method((func(newPos, leaf): leaf.set_polygon(newPos)).bind(leaf), leaf.get_polygon(), newPos, 0.01).set_trans(Tween.TRANS_LINEAR)
+					
+#				handle polygon
 				"{":
 					polyPoints = PackedVector2Array()
-					polyPoints.append(current.pos)
+					polyPoints.append(current.pos)			
 				".":
 					polyPoints.append(current.pos)
 				"}":
@@ -133,8 +133,20 @@ func calculate_draw():
 					poly.color = Color.YELLOW
 					poly.set_polygon(polyPoints)
 					polyPoints = PackedVector2Array()
+
+# 				reverse +- action
 				"&":
 					swapFlag = 1 if swapFlag == -1 else 1
 
 
+
+func set_tween():
+	var TW = create_tween()
+	TW.finished.connect(func(): 
+		var doneLabel = Label.new()
+		doneLabel.text = "DONE"
+		add_child(doneLabel)
+	)
+	
+	return TW
 
