@@ -11,9 +11,22 @@ var current
 
 func _ready():
 	randomize()
-	main("Tree1", Vector2(DisplayServer.window_get_size().x/2, DisplayServer.window_get_size().y), 5, Color.DARK_SLATE_GRAY)
+	var ground = Polygon2D.new()
+	var limitBot = DisplayServer.window_get_size().y/8*7
+	ground.set_polygon(PackedVector2Array([
+		Vector2(0, limitBot), 
+		Vector2(DisplayServer.window_get_size().x, limitBot),
+		Vector2(DisplayServer.window_get_size().x,DisplayServer.window_get_size().y),
+		Vector2(0,DisplayServer.window_get_size().y)
+	]))
+	ground.set_color(Color.SADDLE_BROWN.darkened(0.5))
+	add_child(ground)
 	
-func main(preset_name: String, startingPos: Vector2, steps, color):
+	start("Tree1", Vector2(DisplayServer.window_get_size().x/4, limitBot), 5, Color.SADDLE_BROWN)
+	start("Tree1", Vector2(DisplayServer.window_get_size().x/4*2, limitBot), 5, Color.SADDLE_BROWN)
+	start("Tree1", Vector2(DisplayServer.window_get_size().x/4*3, limitBot), 5, Color.SADDLE_BROWN)
+	
+func start(preset_name: String, startingPos: Vector2, steps, color):
 	rules = load_settings(preset_name)
 	current = starting.duplicate(true)
 	current.pos = startingPos
@@ -114,7 +127,7 @@ func draw_parts(TW):
 #				handle leaves
 				"L":
 					var leaf = Polygon2D.new()
-					var newPos = PackedVector2Array([current.pos, current.pos+current.dir.rotated(150)*current.length, current.pos+current.dir.rotated(300)*current.length*4])
+					var newPos = PackedVector2Array([current.pos, current.pos+current.dir.rotated(150)*current.length*2, current.pos+current.dir.rotated(300)*current.length*2])
 					leaf.set_polygon(PackedVector2Array([current.pos, current.pos+current.dir*current.width,current.pos+current.dir*current.width]))
 					leaf.set_color(Color.GREEN)
 					parts.append(leaf)
@@ -137,8 +150,6 @@ func draw_parts(TW):
 # 				reverse +- action
 				"&":
 					swapFlag = 1 if swapFlag == -1 else 1
-
-
 
 func set_tween():
 	var TW = create_tween()

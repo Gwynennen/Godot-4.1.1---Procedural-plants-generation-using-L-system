@@ -23,3 +23,4 @@ window/size/viewport_height=1200
 
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
+environment/defaults/default_clear_color=Color(0.294118, 0.419608, 0.611765, 1)
